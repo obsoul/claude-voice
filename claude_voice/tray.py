@@ -7,6 +7,16 @@ from .recorder import Recorder
 from . import transcriber
 from . import paster
 from .icon import make_icon
+from pathlib import Path
+
+_ASSETS = Path(__file__).parent.parent / "assets"
+
+def _load_icon(name: str, recording: bool = False) -> "Image":
+    from PIL import Image
+    path = _ASSETS / name
+    if path.exists():
+        return Image.open(path)
+    return make_icon(recording=recording)
 
 
 class VoiceTray:
@@ -28,7 +38,7 @@ class VoiceTray:
     def run(self) -> None:
         self._icon = pystray.Icon(
             "claude-voice",
-            make_icon(recording=False),
+            _load_icon("tray_idle.png", recording=False),
             "Claude Voice — idle",
             menu=self._build_menu(),
         )
@@ -88,5 +98,6 @@ class VoiceTray:
 
     def _set_icon(self, recording: bool, label: str) -> None:
         if self._icon:
-            self._icon.icon = make_icon(recording=recording)
+            name = "tray_recording.png" if recording else "tray_idle.png"
+            self._icon.icon = _load_icon(name, recording=recording)
             self._icon.title = label
