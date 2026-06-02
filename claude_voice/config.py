@@ -3,7 +3,7 @@ import yaml
 from pathlib import Path
 
 DEFAULTS = {
-    "model": "base",
+    "model": "tiny",
     "language": "auto",
     "hotkey": "ctrl+shift+space",
     "device": "cpu",
