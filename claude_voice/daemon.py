@@ -69,6 +69,7 @@ def _record_and_transcribe(duration: float, model_name: str, language: str, devi
     try:
         segments, info = model.transcribe(
             tmp, language=lang,
+            beam_size=1,
             vad_filter=True,
             vad_parameters={"threshold": 0.3, "min_speech_duration_ms": 100},
             no_speech_threshold=0.8,
@@ -94,8 +95,8 @@ class _Handler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
         if parsed.path == "/health":
             self._json({"status": "ready", "model": _model_ref.get("name", "not loaded")})
-        elif parsed.path == "/record":
-            # Client sends GET with query params — route to same handler as POST
+        elif parsed.path in ("/record",):
+            # Client sends GET with query params
             try:
                 self._dispatch(parsed.path, qs)
             except Exception as e:
@@ -116,7 +117,39 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": str(e), "traceback": tb}, 500)
 
     def _dispatch(self, path: str, qs: dict):
-        if path == "/record":
+        if path == "/transcribe":
+            # Accept raw WAV bytes in request body, return transcribed text
+            length = int(self.headers.get("Content-Length", 0))
+            wav_bytes = self.rfile.read(length) if length else b""
+            model_name = qs.get("model",    [self.cfg.get("model", "base")])[0]
+            language   = qs.get("language", [self.cfg.get("language", "auto")])[0]
+            device     = self.cfg.get("device", "cpu")
+
+            from claude_voice.transcriber import _normalize_wav
+            import tempfile, os
+
+            wav_bytes = _normalize_wav(wav_bytes)
+            model = _get_model(model_name, device)
+            lang = None if language == "auto" else language
+
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                f.write(wav_bytes); tmp = f.name
+            try:
+                segments, _ = model.transcribe(
+                    tmp, language=lang,
+                    beam_size=1,
+                    vad_filter=True,
+                    vad_parameters={"threshold": 0.3, "min_speech_duration_ms": 100},
+                    no_speech_threshold=0.8,
+                )
+                text = " ".join(s.text.strip() for s in segments).strip()
+            finally:
+                os.unlink(tmp)
+
+            print(f"[daemon] /transcribe -> {text!r}", flush=True)
+            self._json({"text": text})
+
+        elif path == "/record":
             duration   = float(qs.get("duration",  [8])[0])
             target     = qs.get("target",   [self.cfg.get("paste_mode", "claude")])[0]
             model_name = qs.get("model",    [self.cfg.get("model", "base")])[0]

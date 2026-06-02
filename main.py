@@ -44,6 +44,11 @@ def main():
     on.add_argument("--model", choices=["tiny", "base", "small", "medium", "large-v3"])
     on.add_argument("--language")
 
+    # hotkey
+    hk = sub.add_parser("hotkey", help="Push-to-talk: hold hotkey to record, release to transcribe")
+    hk.add_argument("--target", choices=["claude", "auto", "clipboard"], default="claude")
+    hk.add_argument("--autostart", action="store_true", help="Auto-start daemon if not running")
+
     # tray
     sub.add_parser("tray", help="System tray push-to-talk app")
 
@@ -74,6 +79,8 @@ def main():
     elif args.cmd == "once":
         _cmd_once(cfg, dur=args.dur, target=args.target,
                   model=args.model, language=args.language)
+    elif args.cmd == "hotkey":
+        _cmd_hotkey(cfg, args)
     elif args.cmd == "tray":
         _cmd_tray(cfg)
     elif args.cmd == "setup":
@@ -151,6 +158,33 @@ def _cmd_once(cfg: dict, dur: float, target: str, model: str | None, language: s
         paste_to_target(text, target=target)
     else:
         print("(no speech detected)", flush=True)
+
+
+def _cmd_hotkey(cfg: dict, args) -> None:
+    if args.autostart:
+        from claude_voice import client
+        if not client.is_running():
+            print("[claude-voice] Starting daemon...", flush=True)
+            subprocess.Popen(
+                [sys.executable, __file__, "serve"],
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            )
+            for _ in range(30):
+                time.sleep(0.5)
+                if client.is_running():
+                    print("[claude-voice] Daemon ready.", flush=True)
+                    break
+
+    if hasattr(args, "target"):
+        cfg["paste_mode"] = args.target
+
+    from claude_voice.hotkey import PushToTalk
+    ptt = PushToTalk(cfg)
+    try:
+        ptt.run()
+    except KeyboardInterrupt:
+        ptt.stop()
+        print("\n[claude-voice] Stopped.", flush=True)
 
 
 def _cmd_tray(cfg: dict) -> None:

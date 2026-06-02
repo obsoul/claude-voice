@@ -1,186 +1,280 @@
-# claude-voice
+# claude-voice 🎙
 
-> Local Whisper voice dictation for Claude Code and any Windows app — push-to-talk, auto-paste, fully offline.
+**Talk to Claude instead of typing.** Hold a hotkey, say what you want, let go — your words appear instantly.
 
-Inspired by [WhisprFlow](https://whisprflow.app) and [OpenWhisper](https://github.com/openai/whisper). No cloud. No API keys. Your audio never leaves your machine.
-
----
-
-## Features
-
-- **Push-to-talk hotkey** — hold `Ctrl+Shift+Space` (configurable), speak, release — text appears instantly
-- **Auto-paste** — transcribed text is typed into whatever app you're focused on
-- **Claude Code `/voice` skill** — speak directly into any Claude Code session
-- **Multiple model sizes** — `tiny` to `large-v3`, trading speed for accuracy
-- **Language auto-detect** — or pin to a specific language
-- **System tray app** — lives quietly in your taskbar
-- **100% offline** — powered by [faster-whisper](https://github.com/guillaumekynast/faster-whisper) running locally on CPU (or CUDA)
+Works in Claude Code and any Windows app. Runs 100% on your computer. No internet, no API keys, no subscriptions.
 
 ---
 
-## Requirements
+## What it does
 
-- Windows 10/11
-- Python 3.10+
-- A microphone
+- **Hold a hotkey → speak → release** — text is typed wherever your cursor is
+- Works inside **Claude Code** as a `/voice` command
+- Transcribes your voice using [Whisper AI](https://github.com/openai/whisper), running locally on your CPU
+- Under **0.5 seconds** from when you stop talking to when text appears
 
 ---
 
-## Quick Start
+## Before you start — what you need
+
+You only need three things:
+
+### 1. Python 3.10 or newer
+If you're not sure whether you have it, open PowerShell and type:
+```
+python --version
+```
+If you see `Python 3.10` or higher, you're good. If not, download it free from **[python.org](https://python.org)** — make sure to check the box that says **"Add Python to PATH"** during installation.
+
+### 2. A microphone
+Any microphone works — your laptop's built-in mic, a webcam mic, a USB mic, or a headset. If your computer can make video calls, it will work.
+
+### 3. Claude Code
+You're probably already here if you're reading this! Claude Code is Anthropic's AI coding assistant. Get it at **[claude.ai/code](https://claude.ai/code)**.
+
+---
+
+## Installation — 3 steps
+
+### Step 1 — Download the project
+
+Open PowerShell (search "PowerShell" in your Start menu) and run:
 
 ```powershell
-# Clone the repo
 git clone https://github.com/yourusername/claude-voice.git
 cd claude-voice
-
-# Run the installer (installs deps, config, and Claude Code skill)
-powershell -ExecutionPolicy Bypass -File install.ps1
-
-# Start the tray app
-python main.py
 ```
 
-Hold `Ctrl+Shift+Space` anywhere — speak — release. Done.
+> Don't have `git`? Download it free from [git-scm.com](https://git-scm.com), then restart PowerShell and try again.
+
+### Step 2 — Run the installer
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+This will:
+- Install all required Python packages (~2 minutes on first run)
+- Download the Whisper AI model to your computer (~75 MB, one time only)
+- Set up the `/voice` command in Claude Code
+- Create a config file at `C:\Users\YourName\.claude-voice\config.yaml`
+
+### Step 3 — Start the background service
+
+The background service keeps the AI model loaded in memory so transcription is fast:
+
+```powershell
+python main.py serve
+```
+
+Keep this window open. You can minimize it — it runs quietly in the background.
+
+**That's it. You're ready.**
 
 ---
 
-## Claude Code Skill
+## How to use it
 
-After running the installer, type `/voice` in any Claude Code session:
+### Option A — Inside Claude Code (the `/voice` command)
+
+Open Claude Code, type `/voice`, and press Enter. Claude will tell you to speak, then automatically paste your words into the chat.
 
 ```
 /voice
 ```
 
-Claude will record your voice, transcribe it locally, and use it as your message. You can also pass flags:
-
+Want more time to speak?
 ```
-/voice --model small --language en
+/voice --dur 15
+```
+
+### Option B — Global hotkey (works in any app)
+
+Open a new PowerShell window and run:
+
+```powershell
+python main.py hotkey
+```
+
+Now you can dictate **anywhere on your computer**:
+
+1. Click into any text field (Claude Code, Notepad, Word, browser, anything)
+2. Hold **Ctrl + Shift + Space**
+3. Speak
+4. Release — your words appear
+
+> **Note:** The global hotkey requires running PowerShell as Administrator, or enabling Windows Developer Mode. See the [Troubleshooting](#troubleshooting) section if this doesn't work.
+
+### Option C — Quick one-time recording
+
+Don't want the background service? Use this for a single recording:
+
+```powershell
+python main.py once --dur 8
 ```
 
 ---
 
-## Configuration
+## The two pieces explained
 
-Config lives at `~/.claude-voice/config.yaml`:
+claude-voice has two parts that work together:
+
+| Part | What it does | How to start it |
+|------|-------------|-----------------|
+| **Background service** (daemon) | Keeps the AI model loaded so transcription is instant | `python main.py serve` |
+| **Hotkey listener** | Detects when you hold/release the hotkey | `python main.py hotkey` |
+
+You start both once, minimize the windows, and forget about them. They keep running until you close the windows or restart your computer.
+
+**To start both automatically together**, you can run:
+```powershell
+python main.py serve
+# In a second PowerShell window:
+python main.py hotkey --autostart
+```
+
+---
+
+## Customizing your settings
+
+Your settings live at `C:\Users\YourName\.claude-voice\config.yaml`. Open it with any text editor (Notepad works fine).
 
 ```yaml
-model: base          # tiny | base | small | medium | large-v3
-language: auto       # auto-detect, or e.g. "en", "fr", "es"
+# How accurate vs how fast:
+#   tiny   = fastest (~0.5s), still very accurate for most speech
+#   base   = a bit slower (~2s), slightly more accurate
+#   small  = slower (~4s), more accurate
+model: tiny
+
+# Language — "auto" detects it automatically, or set e.g. "en", "fr", "es"
+language: auto
+
+# The hotkey to hold while speaking
 hotkey: ctrl+shift+space
-device: cpu          # cpu | cuda
-paste_mode: auto     # auto (pastes) | clipboard (copy only)
+
+# Where the text goes after transcription:
+#   claude    = paste into Claude Code
+#   auto      = paste into whatever app you're typing in
+#   clipboard = just copy to clipboard (you paste with Ctrl+V)
+paste_mode: auto
 ```
 
-### Model comparison
-
-| Model | Size | Speed (CPU) | Accuracy |
-|-------|------|-------------|----------|
-| tiny | 39 MB | ~0.5s | Basic |
-| base | 74 MB | ~1s | Good (default) |
-| small | 244 MB | ~2-3s | Better |
-| medium | 769 MB | ~5-8s | High |
-| large-v3 | 1.5 GB | ~15s+ | Best |
-
----
-
-## Manual Install
-
-```powershell
-# Core only (Claude Code skill + one-shot mode)
-pip install faster-whisper sounddevice numpy scipy PyYAML pyperclip
-
-# Full tray app
-pip install pystray Pillow keyboard pyautogui
-```
-
----
-
-## Usage
-
-```powershell
-# System tray app (push-to-talk hotkey, runs in background)
-python main.py
-
-# One-shot: record once, print transcription, exit
-python main.py --once
-
-# Override model or language for one session
-python main.py --once --model small --language en
-
-# Create default config file
-python main.py --setup
-```
-
----
-
-## How It Works
-
-```
-Hotkey held down
-    └─ sounddevice records mic → float32 PCM frames
-Hotkey released
-    └─ frames → WAV bytes → faster-whisper transcribes locally
-        └─ text → pyperclip (clipboard) + pyautogui Ctrl+V (auto-paste)
-```
-
-Whisper models are downloaded from HuggingFace on first use (~seconds) and cached locally.
-
----
-
-## Project Structure
-
-```
-claude-voice/
-├── main.py                  Entry point (tray + one-shot modes)
-├── SKILL.md                 Claude Code /voice skill definition
-├── config.yaml              Default configuration
-├── install.ps1              Windows installer
-├── requirements.txt
-├── pyproject.toml
-└── claude_voice/
-    ├── config.py            Config loader
-    ├── recorder.py          Microphone recording (sounddevice)
-    ├── transcriber.py       Whisper transcription (faster-whisper)
-    ├── paster.py            Clipboard + auto-paste
-    ├── tray.py              System tray app (pystray + keyboard)
-    └── icon.py              Programmatic tray icon (Pillow)
-```
+After changing settings, restart the background service for them to take effect.
 
 ---
 
 ## Troubleshooting
 
-**No audio / silent transcription**
-- Check your default microphone in Windows Sound settings
-- Run `python -c "import sounddevice; print(sounddevice.query_devices())"` to list devices
+### "The hotkey isn't working"
+The `keyboard` library needs elevated permissions to intercept global key presses. Try one of these:
 
-**Hotkey not working**
-- Run as Administrator (some apps block global hotkeys)
-- Change the hotkey in `~/.claude-voice/config.yaml`
+**Option 1** — Run PowerShell as Administrator:
+Right-click PowerShell in the Start menu → "Run as administrator" → run `python main.py hotkey`
 
-**Slow transcription**
-- Switch to `model: tiny` in config for near-instant results
-- If you have an NVIDIA GPU: set `device: cuda`
+**Option 2** — Enable Windows Developer Mode:
+Settings → System → For Developers → turn on "Developer Mode" → restart and try again
 
-**`keyboard` module requires admin**
-- Right-click the terminal → Run as Administrator, or use `paste_mode: clipboard` and paste manually
+### "It's not picking up my voice"
+- Check that your microphone is set as the default in Windows: right-click the speaker icon in the taskbar → Sound settings → Input → make sure your mic is selected
+- Try speaking louder or closer to the mic
+- Run `python main.py once --dur 5` and speak clearly — if it works, the hotkey listener just needs to be restarted
+
+### "It says 'no speech detected'"
+- Make sure you're speaking **during** the countdown, not after
+- Check that your mic volume is turned up in Windows Sound settings (right-click speaker icon → Sound settings → Input volume)
+
+### "I get an error about Python not being found"
+You need to reinstall Python and make sure to check **"Add Python to PATH"** during installation.
+
+### "The installer failed"
+Run PowerShell as Administrator (right-click → Run as administrator) and try the installer again.
+
+### "I want to stop everything"
+- Stop the background service: `python main.py stop`
+- Close the hotkey listener window (or press Ctrl+C in it)
+
+---
+
+## Frequently asked questions
+
+**Does my voice get sent to the internet?**
+No. Everything runs on your computer. The Whisper model is downloaded once during install, then runs locally forever.
+
+**Does it work on Mac or Linux?**
+Right now it's Windows only. Mac and Linux support is planned — contributions welcome!
+
+**How accurate is it?**
+Very accurate for clear speech in English. It handles accents well. Background noise can reduce accuracy — a quiet room or a headset microphone helps.
+
+**Can I use a different language?**
+Yes — set `language: fr` (or any language code) in your config file, or pass `--language fr` when using `/voice`.
+
+**Can I make it more accurate (and don't mind it being slower)?**
+Change `model: tiny` to `model: base` or `model: small` in your config file, then restart the background service.
+
+**What's the difference between the `/voice` skill and the hotkey?**
+- `/voice` works only inside Claude Code and is triggered by typing a command
+- The hotkey works **everywhere** on your computer and is triggered by holding a key combination
+
+---
+
+## Commands reference
+
+```powershell
+# Start the background service (keep this running)
+python main.py serve
+
+# Start the global push-to-talk hotkey
+python main.py hotkey
+
+# Start hotkey and auto-launch the background service if needed
+python main.py hotkey --autostart
+
+# Record once for 8 seconds (no hotkey needed)
+python main.py trigger --dur 8
+
+# Stop the background service
+python main.py stop
+
+# Create a fresh config file
+python main.py setup
+```
+
+---
+
+## Project layout
+
+```
+claude-voice/
+├── main.py               ← Start here — all commands go through this
+├── SKILL.md              ← The /voice Claude Code skill definition
+├── install.ps1           ← Windows one-click installer
+├── config.yaml           ← Default settings (copy to ~/.claude-voice/)
+├── requirements.txt      ← Python packages needed
+└── claude_voice/
+    ├── daemon.py         ← Background service (keeps AI model loaded)
+    ├── hotkey.py         ← Push-to-talk hotkey listener
+    ├── recorder.py       ← Microphone recording
+    ├── transcriber.py    ← Whisper AI transcription
+    ├── paster.py         ← Pastes text into the right window
+    ├── client.py         ← Talks to the background service
+    └── config.py         ← Loads and saves settings
+```
 
 ---
 
 ## Contributing
 
-PRs welcome. Please open an issue first for large changes.
+Pull requests are welcome! If you run into a bug or want to suggest a feature, please [open an issue](https://github.com/yourusername/claude-voice/issues).
 
 Ideas for future versions:
-- macOS support (CoreAudio + pynput)
-- Linux support (PulseAudio)
-- Whisper.cpp backend option
-- Custom vocabulary / prompt injection
-- Wake word activation
+- Mac and Linux support
+- Wake word activation ("Hey Claude...")
+- Real-time streaming transcription (words appear as you speak)
+- GPU acceleration for even faster transcription
 
 ---
 
 ## License
 
-MIT © 2026
+MIT — free to use, modify, and distribute.

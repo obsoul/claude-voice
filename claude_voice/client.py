@@ -35,6 +35,20 @@ def trigger(duration: float, target: str, model: str, language: str) -> str | No
         return None
 
 
+def transcribe_wav(wav_bytes: bytes, model: str = "base", language: str = "auto") -> str | None:
+    """Send recorded WAV bytes to the daemon for transcription. Returns text or None if daemon unreachable."""
+    url = f"http://127.0.0.1:{PORT}/transcribe?model={model}&language={language}"
+    req = urllib.request.Request(url, data=wav_bytes, method="POST")
+    req.add_header("Content-Type", "audio/wav")
+    req.add_header("Content-Length", len(wav_bytes))
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+            return data.get("text", "")
+    except Exception:
+        return None
+
+
 def stop() -> None:
     try:
         urllib.request.urlopen(
