@@ -32,8 +32,10 @@ class PushToTalk:
         self._trigger_key = parts[-1]
         self._modifiers = parts[:-1]
 
-        keyboard.on_press_key(self._trigger_key, self._on_press, suppress=True)
-        keyboard.on_release_key(self._trigger_key, self._on_release, suppress=True)
+        # suppress=False so plain Space still works normally when modifiers aren't held.
+        # Ctrl+Shift being held already prevents a space character from being typed.
+        keyboard.on_press_key(self._trigger_key, self._on_press, suppress=False)
+        keyboard.on_release_key(self._trigger_key, self._on_release, suppress=False)
 
         print(f"[claude-voice] Push-to-talk ready. Hold [{self.hotkey}] to record.", flush=True)
         print( "[claude-voice] Press Ctrl+C to stop.", flush=True)
