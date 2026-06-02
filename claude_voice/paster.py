@@ -1,14 +1,16 @@
+"""
+Cross-platform text pasting.
+
+Windows : pygetwindow to focus + Ctrl+V via pyautogui
+macOS   : osascript to focus + Cmd+V via osascript (no extra deps)
+"""
+
+import sys
 import time
 import pyperclip
 
 
 def paste_to_target(text: str, target: str = "claude") -> None:
-    """
-    Send transcribed text to the right place:
-      claude    — find the Claude Code window, focus it, paste into the chat input
-      auto      — paste into whatever window is currently focused
-      clipboard — copy to clipboard only, no auto-paste
-    """
     pyperclip.copy(text)
 
     if target == "clipboard":
@@ -19,36 +21,79 @@ def paste_to_target(text: str, target: str = "claude") -> None:
         if _focus_claude_code():
             _send_paste()
             print("[OK] Pasted into Claude Code.", flush=True)
-            return
-        print("[!] Claude Code window not found. Text is on your clipboard -- paste with Ctrl+V.", flush=True)
+        else:
+            print("[!] Claude Code window not found. Text is on your clipboard -- paste with Ctrl+V / Cmd+V.", flush=True)
         return
 
-    # target == "auto": paste into whatever is focused right now
+    # target == "auto"
     _send_paste()
     print("[OK] Pasted into active window.", flush=True)
 
 
+# ------------------------------------------------------------------
+# Window focus
+# ------------------------------------------------------------------
+
 def _focus_claude_code() -> bool:
-    """Find and focus the Claude Code window. Returns True on success."""
+    if sys.platform == "darwin":
+        return _focus_mac()
+    return _focus_windows()
+
+
+def _focus_windows() -> bool:
     try:
         import pygetwindow as gw
-        # Claude Code's window title contains "Claude" on Windows
         matches = [w for w in gw.getAllWindows()
                    if "claude" in w.title.lower() and w.title.strip()]
         if not matches:
             return False
-        win = matches[0]
-        win.activate()
-        time.sleep(0.3)  # let the window actually come to front
+        matches[0].activate()
+        time.sleep(0.3)
         return True
     except Exception:
         return False
 
 
+def _focus_mac() -> bool:
+    import subprocess
+    # Claude Code on Mac runs as "Claude" or "Claude Code"
+    for app_name in ("Claude Code", "Claude"):
+        result = subprocess.run(
+            ["osascript", "-e", f'tell application "{app_name}" to activate'],
+            capture_output=True,
+            timeout=3,
+        )
+        if result.returncode == 0:
+            time.sleep(0.3)
+            return True
+    return False
+
+
+# ------------------------------------------------------------------
+# Paste keypress
+# ------------------------------------------------------------------
+
 def _send_paste() -> None:
+    time.sleep(0.15)
+    if sys.platform == "darwin":
+        _paste_mac()
+    else:
+        _paste_windows()
+
+
+def _paste_windows() -> None:
     try:
         import pyautogui
-        time.sleep(0.15)
         pyautogui.hotkey("ctrl", "v")
     except Exception:
         pass
+
+
+def _paste_mac() -> None:
+    import subprocess
+    subprocess.run(
+        ["osascript", "-e",
+         'tell application "System Events" to keystroke "v" using {command down}'],
+        capture_output=True,
+        timeout=3,
+    )

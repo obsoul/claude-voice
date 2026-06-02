@@ -36,21 +36,34 @@ You're probably already here if you're reading this! Claude Code is Anthropic's 
 
 ## Installation — 3 steps
 
+> **Windows or Mac?** The steps are almost identical — just pick the right installer in Step 2.
+
 ### Step 1 — Download the project
 
-Open PowerShell (search "PowerShell" in your Start menu) and run:
-
+**Windows** — open PowerShell (search "PowerShell" in your Start menu):
 ```powershell
 git clone https://github.com/obsoul/claude-voice.git
 cd claude-voice
 ```
 
-> Don't have `git`? Download it free from [git-scm.com](https://git-scm.com), then restart PowerShell and try again.
+**Mac** — open Terminal (search "Terminal" in Spotlight):
+```bash
+git clone https://github.com/obsoul/claude-voice.git
+cd claude-voice
+```
+
+> Don't have `git`? **Windows:** download from [git-scm.com](https://git-scm.com). **Mac:** run `xcode-select --install` in Terminal.
 
 ### Step 2 — Run the installer
 
+**Windows:**
 ```powershell
 powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+**Mac:**
+```bash
+bash install.sh
 ```
 
 This will:
@@ -165,7 +178,7 @@ After changing settings, restart the background service for them to take effect.
 
 ## Troubleshooting
 
-### "The hotkey isn't working"
+### "The hotkey isn't working" (Windows)
 The `keyboard` library needs elevated permissions to intercept global key presses. Try one of these:
 
 **Option 1** — Run PowerShell as Administrator:
@@ -173,6 +186,16 @@ Right-click PowerShell in the Start menu → "Run as administrator" → run `pyt
 
 **Option 2** — Enable Windows Developer Mode:
 Settings → System → For Developers → turn on "Developer Mode" → restart and try again
+
+### "The hotkey isn't working" (Mac)
+Mac requires Accessibility permission for the hotkey listener. Here's how to grant it:
+
+1. Open **System Settings** → **Privacy & Security** → **Accessibility**
+2. Click the **+** button
+3. Add your Terminal app (Terminal, iTerm2, or whichever you use)
+4. Restart the hotkey listener: `python3 main.py hotkey`
+
+> If you're running from a virtual environment, you may need to add the Python binary itself instead of Terminal.
 
 ### "It's not picking up my voice"
 - Check that your microphone is set as the default in Windows: right-click the speaker icon in the taskbar → Sound settings → Input → make sure your mic is selected
@@ -200,8 +223,11 @@ Run PowerShell as Administrator (right-click → Run as administrator) and try t
 **Does my voice get sent to the internet?**
 No. Everything runs on your computer. The Whisper model is downloaded once during install, then runs locally forever.
 
-**Does it work on Mac or Linux?**
-Right now it's Windows only. Mac and Linux support is planned — contributions welcome!
+**Does it work on Mac?**
+Yes! Full Mac support is included. Run `bash install.sh` to get started. Linux support is planned — contributions welcome!
+
+**What permissions does Mac need?**
+Just one: Accessibility access for the hotkey listener (so it can detect global key presses). The installer will remind you how to enable it. No root or admin password required.
 
 **How accurate is it?**
 Very accurate for clear speech in English. It handles accents well. Background noise can reduce accuracy — a quiet room or a headset microphone helps.

@@ -1,14 +1,20 @@
-# Core — required for transcription
+# Core — required on all platforms
 faster-whisper>=1.0.0
 sounddevice>=0.4.6
 numpy>=1.24.0
 scipy>=1.11.0
 PyYAML>=6.0
-noisereduce>=3.0.0
+pyperclip>=1.8.2
 
-# Tray app — required for system-wide hotkey mode
+# Tray app
 pystray>=0.19.4
 Pillow>=10.0.0
-keyboard>=0.13.5
-pyperclip>=1.8.2
-pyautogui>=0.9.54
+
+# Windows — global hotkey + window management + auto-paste
+keyboard>=0.13.5; sys_platform == "win32"
+pygetwindow>=0.0.9; sys_platform == "win32"
+pyautogui>=0.9.54; sys_platform == "win32"
+
+# macOS — global hotkey (Accessibility API, no root needed)
+# paste is handled via osascript (built into macOS, no extra package needed)
+pynput>=1.7.6; sys_platform == "darwin"

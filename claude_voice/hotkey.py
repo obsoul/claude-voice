@@ -1,20 +1,23 @@
 """
-Push-to-talk hotkey listener.
+Push-to-talk hotkey listener — cross-platform.
+
+Windows : uses `keyboard` library (raw hook, no suppression)
+macOS   : uses `pynput` (Accessibility API, no root needed)
 
 Hold the configured hotkey → recording starts.
 Release → recording stops, audio sent to daemon for transcription, result pasted.
 """
 
+import sys
 import threading
 import time
-import keyboard
 
 from .recorder import Recorder
 from .paster import paste_to_target
 
 
 class PushToTalk:
-    MIN_DURATION = 0.3  # seconds — ignore accidental taps shorter than this
+    MIN_DURATION = 0.3  # seconds — ignore accidental taps
 
     def __init__(self, cfg: dict):
         self.cfg = cfg
@@ -25,43 +28,89 @@ class PushToTalk:
         self._recording = False
         self._lock = threading.Lock()
 
+    # ------------------------------------------------------------------
+    # Entry point
+    # ------------------------------------------------------------------
+
     def run(self) -> None:
-        """Block forever, listening for the hotkey."""
-        # Parse hotkey — register the trigger key, check modifiers manually
+        print(f"[claude-voice] Push-to-talk ready. Hold [{self.hotkey}] to record.", flush=True)
+        print("[claude-voice] Press Ctrl+C to stop.", flush=True)
+
+        if sys.platform == "darwin":
+            self._run_mac()
+        else:
+            self._run_windows()
+
+    def stop(self) -> None:
+        if sys.platform == "darwin":
+            pass  # pynput listener stopped by KeyboardInterrupt
+        else:
+            try:
+                import keyboard
+                keyboard.unhook_all()
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------
+    # Windows — keyboard library
+    # ------------------------------------------------------------------
+
+    def _run_windows(self) -> None:
+        import keyboard
+
         parts = [p.strip() for p in self.hotkey.split("+")]
         self._trigger_key = parts[-1]
         self._modifiers = parts[:-1]
 
-        # Use a raw hook with no suppression so regular typing is never blocked.
-        # We manually check the trigger key and modifiers inside the callback.
-        self._hook_ref = keyboard.hook(self._raw_hook, suppress=False)
-
-        print(f"[claude-voice] Push-to-talk ready. Hold [{self.hotkey}] to record.", flush=True)
-        print( "[claude-voice] Press Ctrl+C to stop.", flush=True)
+        keyboard.hook(self._windows_hook, suppress=False)
         keyboard.wait()
 
-    def stop(self) -> None:
-        keyboard.unhook_all()
-
-    # ------------------------------------------------------------------
-
-    def _raw_hook(self, event) -> None:
-        """Receives every keyboard event. Only acts on the trigger key + modifiers."""
+    def _windows_hook(self, event) -> None:
+        import keyboard
         if event.name != self._trigger_key:
-            return  # not our key — let it pass through untouched
-        if event.event_type == keyboard.KEY_DOWN and self._modifiers_held():
-            self._on_press(event)
+            return
+        if event.event_type == keyboard.KEY_DOWN and self._windows_modifiers_held():
+            self._on_press()
         elif event.event_type == keyboard.KEY_UP and self._recording:
-            self._on_release(event)
+            self._on_release()
 
-    def _modifiers_held(self) -> bool:
-        if not self._modifiers:
-            return True
+    def _windows_modifiers_held(self) -> bool:
+        import keyboard
         return all(keyboard.is_pressed(m) for m in self._modifiers)
 
-    def _on_press(self, event) -> None:
-        if not self._modifiers_held():
-            return
+    # ------------------------------------------------------------------
+    # macOS — pynput library
+    # ------------------------------------------------------------------
+
+    def _run_mac(self) -> None:
+        from pynput import keyboard as pynput_kb
+
+        self._mac_pressed: set = set()
+        self._mac_hotkeys = _parse_pynput_hotkey(self.hotkey)
+
+        def on_press(key):
+            self._mac_pressed.add(_normalize_pynput_key(key))
+            if self._mac_hotkeys.issubset(self._mac_pressed):
+                self._on_press()
+
+        def on_release(key):
+            normalized = _normalize_pynput_key(key)
+            was_active = self._mac_hotkeys.issubset(self._mac_pressed)
+            self._mac_pressed.discard(normalized)
+            if was_active and self._recording:
+                self._on_release()
+
+        with pynput_kb.Listener(on_press=on_press, on_release=on_release) as listener:
+            try:
+                listener.join()
+            except KeyboardInterrupt:
+                pass
+
+    # ------------------------------------------------------------------
+    # Shared press/release logic
+    # ------------------------------------------------------------------
+
+    def _on_press(self) -> None:
         with self._lock:
             if self._recording:
                 return
@@ -75,7 +124,7 @@ class PushToTalk:
         self._recorder.start()
         self._show("Recording...")
 
-    def _on_release(self, event) -> None:
+    def _on_release(self) -> None:
         with self._lock:
             if not self._recording:
                 return
@@ -83,7 +132,6 @@ class PushToTalk:
             duration = time.monotonic() - self._press_time
 
         if duration < self.MIN_DURATION:
-            # Accidental tap — discard
             self._recorder.stop()
             self._recorder = None
             self._show("(tap too short, ignored)")
@@ -96,9 +144,7 @@ class PushToTalk:
     def _finish(self, recorder: Recorder) -> None:
         self._show("Transcribing...")
         wav = recorder.stop()
-
         text = self._transcribe(wav)
-
         if text:
             self._show(f"-> {text}")
             paste_to_target(text, target=self.target)
@@ -106,12 +152,9 @@ class PushToTalk:
             self._show("(no speech detected)")
 
     def _transcribe(self, wav: bytes) -> str:
-        """Try daemon first (fast), fall back to local transcription."""
-        model_name = self.cfg.get("model", "base")
+        model_name = self.cfg.get("model", "tiny")
         language   = self.cfg.get("language", "auto")
         device     = self.cfg.get("device", "cpu")
-
-        # Try daemon
         try:
             from .client import transcribe_wav
             text = transcribe_wav(wav, model=model_name, language=language)
@@ -119,11 +162,54 @@ class PushToTalk:
                 return text
         except Exception:
             pass
-
-        # Fall back to local (model loaded fresh — slower first time)
         from . import transcriber
         return transcriber.transcribe(wav, model_name=model_name, language=language, device=device)
 
     @staticmethod
     def _show(msg: str) -> None:
         print(f"\r[claude-voice] {msg}                    ", flush=True)
+
+
+# ------------------------------------------------------------------
+# pynput helpers
+# ------------------------------------------------------------------
+
+def _normalize_pynput_key(key):
+    """Collapse left/right modifier variants to a single canonical key."""
+    try:
+        from pynput.keyboard import Key
+        variants = {
+            Key.ctrl_l: Key.ctrl, Key.ctrl_r: Key.ctrl,
+            Key.shift_l: Key.shift, Key.shift_r: Key.shift,
+            Key.alt_l: Key.alt, Key.alt_r: Key.alt,
+            Key.cmd_l: Key.cmd, Key.cmd_r: Key.cmd,
+        }
+        return variants.get(key, key)
+    except Exception:
+        return key
+
+
+def _parse_pynput_hotkey(hotkey_str: str) -> set:
+    """Convert a hotkey string like 'ctrl+shift+space' into a set of pynput keys."""
+    from pynput.keyboard import Key, KeyCode
+
+    mapping = {
+        "ctrl":    Key.ctrl,
+        "shift":   Key.shift,
+        "alt":     Key.alt,
+        "cmd":     Key.cmd,
+        "command": Key.cmd,
+        "space":   Key.space,
+        "enter":   Key.enter,
+        "tab":     Key.tab,
+        "esc":     Key.esc,
+    }
+
+    result = set()
+    for part in hotkey_str.lower().split("+"):
+        part = part.strip()
+        if part in mapping:
+            result.add(mapping[part])
+        elif len(part) == 1:
+            result.add(KeyCode.from_char(part))
+    return result
