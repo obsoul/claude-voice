@@ -1,0 +1,29 @@
+# claude-voice default configuration
+# Copy this file to ~/.claude-voice/config.yaml to customize
+
+# Whisper model size — tradeoff between speed and accuracy:
+#   tiny   ~39 MB  — fastest, least accurate
+#   base   ~74 MB  — good balance (default)
+#   small  ~244 MB — better accuracy, still fast on CPU
+#   medium ~769 MB — high accuracy, slower
+#   large-v3 ~1.5 GB — best accuracy, requires decent hardware
+model: base
+
+# Language: "auto" for auto-detection, or a language code like "en", "fr", "es", "de"
+language: auto
+
+# Global hotkey for the tray app (hold to record, release to transcribe)
+# Format: modifier+modifier+key  e.g. ctrl+shift+space, win+alt+v
+hotkey: ctrl+shift+space
+
+# Device: "cpu" or "cuda" (if you have an NVIDIA GPU with CUDA)
+device: cpu
+
+# Paste mode after transcription:
+#   auto      — copies to clipboard AND sends Ctrl+V to the focused window
+#   clipboard — copies to clipboard only (you paste manually with Ctrl+V)
+paste_mode: auto
+
+# Audio settings (no need to change for most microphones)
+sample_rate: 16000
+channels: 1

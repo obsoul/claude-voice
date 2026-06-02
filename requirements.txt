@@ -1,0 +1,13 @@
+# Core — required for transcription
+faster-whisper>=1.0.0
+sounddevice>=0.4.6
+numpy>=1.24.0
+scipy>=1.11.0
+PyYAML>=6.0
+
+# Tray app — required for system-wide hotkey mode
+pystray>=0.19.4
+Pillow>=10.0.0
+keyboard>=0.13.5
+pyperclip>=1.8.2
+pyautogui>=0.9.54
