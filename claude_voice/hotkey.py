@@ -32,19 +32,27 @@ class PushToTalk:
         self._trigger_key = parts[-1]
         self._modifiers = parts[:-1]
 
-        # suppress=False so plain Space still works normally when modifiers aren't held.
-        # Ctrl+Shift being held already prevents a space character from being typed.
-        keyboard.on_press_key(self._trigger_key, self._on_press, suppress=False)
-        keyboard.on_release_key(self._trigger_key, self._on_release, suppress=False)
+        # Use a raw hook with no suppression so regular typing is never blocked.
+        # We manually check the trigger key and modifiers inside the callback.
+        self._hook_ref = keyboard.hook(self._raw_hook, suppress=False)
 
         print(f"[claude-voice] Push-to-talk ready. Hold [{self.hotkey}] to record.", flush=True)
         print( "[claude-voice] Press Ctrl+C to stop.", flush=True)
-        keyboard.wait()  # blocks until Ctrl+C or keyboard.unhook_all()
+        keyboard.wait()
 
     def stop(self) -> None:
         keyboard.unhook_all()
 
     # ------------------------------------------------------------------
+
+    def _raw_hook(self, event) -> None:
+        """Receives every keyboard event. Only acts on the trigger key + modifiers."""
+        if event.name != self._trigger_key:
+            return  # not our key — let it pass through untouched
+        if event.event_type == keyboard.KEY_DOWN and self._modifiers_held():
+            self._on_press(event)
+        elif event.event_type == keyboard.KEY_UP and self._recording:
+            self._on_release(event)
 
     def _modifiers_held(self) -> bool:
         if not self._modifiers:
