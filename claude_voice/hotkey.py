@@ -36,13 +36,13 @@ class PushToTalk:
         print(f"[claude-voice] Push-to-talk ready. Hold [{self.hotkey}] to record.", flush=True)
         print("[claude-voice] Press Ctrl+C to stop.", flush=True)
 
-        if sys.platform == "darwin":
-            self._run_mac()
+        if sys.platform in ("darwin", "linux"):
+            self._run_pynput()
         else:
             self._run_windows()
 
     def stop(self) -> None:
-        if sys.platform == "darwin":
+        if sys.platform in ("darwin", "linux"):
             pass  # pynput listener stopped by KeyboardInterrupt
         else:
             try:
@@ -79,10 +79,10 @@ class PushToTalk:
         return all(keyboard.is_pressed(m) for m in self._modifiers)
 
     # ------------------------------------------------------------------
-    # macOS — pynput library
+    # macOS + Linux — pynput library
     # ------------------------------------------------------------------
 
-    def _run_mac(self) -> None:
+    def _run_pynput(self) -> None:
         from pynput import keyboard as pynput_kb
 
         self._mac_pressed: set = set()

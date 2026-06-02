@@ -2,7 +2,7 @@
 
 **Talk to Claude instead of typing.** Hold a hotkey, say what you want, let go — your words appear instantly.
 
-Works in Claude Code and any Windows or Mac app. Runs 100% on your computer. No internet, no API keys, no subscriptions.
+Works in Claude Code and any Windows, Mac, or Linux app. Runs 100% on your computer. No internet, no API keys, no subscriptions.
 
 ---
 
@@ -52,7 +52,7 @@ git clone https://github.com/obsoul/claude-voice.git
 cd claude-voice
 ```
 
-> Don't have `git`? **Windows:** download from [git-scm.com](https://git-scm.com). **Mac:** run `xcode-select --install` in Terminal.
+> Don't have `git`? **Windows:** download from [git-scm.com](https://git-scm.com). **Mac:** run `xcode-select --install` in Terminal. **Linux:** run `sudo apt install git`.
 
 ### Step 2 — Run the installer
 
@@ -65,6 +65,12 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 ```bash
 bash install.sh
 ```
+
+**Linux:**
+```bash
+bash install.sh
+```
+> Linux requires `xdotool` and `xclip` for paste support — the installer handles this automatically on Ubuntu/Debian, Fedora, and Arch.
 
 This will:
 - Install all required Python packages (~2 minutes on first run)
@@ -187,6 +193,13 @@ Right-click PowerShell in the Start menu → "Run as administrator" → run `pyt
 **Option 2** — Enable Windows Developer Mode:
 Settings → System → For Developers → turn on "Developer Mode" → restart and try again
 
+### "The hotkey isn't working" (Linux)
+Linux uses `pynput` for global hotkeys via the Accessibility API.
+
+- **X11:** Should work out of the box after install. If not, try running with `sudo`.
+- **Wayland:** Global hotkeys have limited support under Wayland. If the hotkey doesn't respond, log out and choose an X11 session at the login screen.
+- Make sure `python-xlib` is installed: `pip3 install python-xlib`
+
 ### "The hotkey isn't working" (Mac)
 Mac requires Accessibility permission for the hotkey listener. Here's how to grant it:
 
@@ -223,8 +236,8 @@ Run PowerShell as Administrator (right-click → Run as administrator) and try t
 **Does my voice get sent to the internet?**
 No. Everything runs on your computer. The Whisper model is downloaded once during install, then runs locally forever.
 
-**Does it work on Mac?**
-Yes! Full Mac support is included. Run `bash install.sh` to get started. Linux support is planned — contributions welcome!
+**Does it work on Mac and Linux?**
+Yes! Full Mac and Linux support is included. Run `bash install.sh` on either platform to get started.
 
 **What permissions does Mac need?**
 Just one: Accessibility access for the hotkey listener (so it can detect global key presses). The installer will remind you how to enable it. No root or admin password required.

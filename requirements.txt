@@ -15,6 +15,10 @@ keyboard>=0.13.5; sys_platform == "win32"
 pygetwindow>=0.0.9; sys_platform == "win32"
 pyautogui>=0.9.54; sys_platform == "win32"
 
-# macOS — global hotkey (Accessibility API, no root needed)
-# paste is handled via osascript (built into macOS, no extra package needed)
+# macOS — global hotkey via Accessibility API, paste via osascript (built-in)
 pynput>=1.7.6; sys_platform == "darwin"
+
+# Linux — global hotkey via Accessibility API
+# paste + window focus via xdotool (install with: sudo apt install xdotool xclip)
+pynput>=1.7.6; sys_platform == "linux"
+python-xlib>=0.33; sys_platform == "linux"
