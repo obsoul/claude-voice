@@ -41,7 +41,7 @@ You're probably already here if you're reading this! Claude Code is Anthropic's 
 Open PowerShell (search "PowerShell" in your Start menu) and run:
 
 ```powershell
-git clone https://github.com/yourusername/claude-voice.git
+git clone https://github.com/obsoul/claude-voice.git
 cd claude-voice
 ```
 
@@ -265,7 +265,7 @@ claude-voice/
 
 ## Contributing
 
-Pull requests are welcome! If you run into a bug or want to suggest a feature, please [open an issue](https://github.com/yourusername/claude-voice/issues).
+Pull requests are welcome! If you run into a bug or want to suggest a feature, please [open an issue](https://github.com/obsoul/claude-voice/issues).
 
 Ideas for future versions:
 - Mac and Linux support

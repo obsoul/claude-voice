@@ -39,8 +39,8 @@ tray = [
 claude-voice = "main:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/claude-voice"
-Issues = "https://github.com/yourusername/claude-voice/issues"
+Homepage = "https://github.com/obsoul/claude-voice"
+Issues = "https://github.com/obsoul/claude-voice/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
