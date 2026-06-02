@@ -2,7 +2,7 @@
 
 **Talk to Claude instead of typing.** Hold a hotkey, say what you want, let go — your words appear instantly.
 
-Works in Claude Code and any Windows app. Runs 100% on your computer. No internet, no API keys, no subscriptions.
+Works in Claude Code and any Windows or Mac app. Runs 100% on your computer. No internet, no API keys, no subscriptions.
 
 ---
 
