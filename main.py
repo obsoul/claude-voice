@@ -34,6 +34,9 @@ def main():
     tr.add_argument("--autostart", action="store_true",
                     help="Start daemon automatically if not running")
 
+    # detect
+    sub.add_parser("detect", help="Detect GPU/CPU and show recommended settings")
+
     # stop
     sub.add_parser("stop", help="Stop the daemon")
 
@@ -74,6 +77,8 @@ def main():
         _cmd_serve(cfg)
     elif args.cmd == "trigger":
         _cmd_trigger(cfg, args)
+    elif args.cmd == "detect":
+        _cmd_detect()
     elif args.cmd == "stop":
         _cmd_stop()
     elif args.cmd == "once":
@@ -128,6 +133,51 @@ def _cmd_trigger(cfg: dict, args) -> None:
         print(f"\nTranscription ({elapsed:.1f}s total):\n{text}\n", flush=True)
     else:
         print("(no speech detected)", flush=True)
+
+
+def _cmd_detect() -> None:
+    from claude_voice.transcriber import detect_device
+    device, compute_type = detect_device()
+
+    print("\n  claude-voice — hardware detection")
+    print("  " + "=" * 36)
+
+    if device == "cuda":
+        try:
+            import torch
+            gpu_name = torch.cuda.get_device_name(0)
+            vram = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            print(f"\n  GPU detected : {gpu_name}")
+            print(f"  VRAM         : {vram:.1f} GB")
+        except Exception:
+            print("\n  GPU detected : NVIDIA CUDA")
+        print(f"  Compute type : {compute_type} (optimal for GPU)")
+        print("\n  Recommended config (~/.claude-voice/config.yaml):")
+        print("    device: cuda")
+        print("    compute_type: float16")
+        print("    model: large-v3   # near-perfect accuracy, ~0.8s on GPU")
+        print("\n  Expected transcription speed:")
+        print("    tiny     ->  ~0.03s  (imperceptible)")
+        print("    base     ->  ~0.08s  (imperceptible)")
+        print("    small    ->  ~0.15s  (imperceptible)")
+        print("    medium   ->  ~0.3s   (barely noticeable)")
+        print("    large-v3 ->  ~0.8s   (fast, best accuracy)")
+    else:
+        print("\n  No GPU detected — running on CPU")
+        print(f"  Compute type : {compute_type} (int8 quantized, fast)")
+        print("\n  Recommended config (~/.claude-voice/config.yaml):")
+        print("    device: cpu")
+        print("    compute_type: int8")
+        print("    model: tiny   # best speed/accuracy balance on CPU")
+        print("\n  Expected transcription speed:")
+        print("    tiny  ->  ~0.3s  (fast)")
+        print("    base  ->  ~2s    (noticeable)")
+        print("    small ->  ~4s    (slow)")
+        print("\n  Want GPU speed? Install CUDA:")
+        print("    https://developer.nvidia.com/cuda-downloads")
+        print("    Then: pip install nvidia-cublas-cu12 nvidia-cudnn-cu12")
+
+    print()
 
 
 def _cmd_stop() -> None:

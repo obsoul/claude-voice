@@ -1,29 +1,54 @@
-# claude-voice default configuration
+# claude-voice configuration
 # Copy this file to ~/.claude-voice/config.yaml to customize
+# Run `python main.py detect` to see what hardware you have
 
-# Whisper model size — tradeoff between speed and accuracy:
-#   tiny   ~39 MB  — fastest, least accurate
-#   base   ~74 MB  — good balance (default)
-#   small  ~244 MB — better accuracy, still fast on CPU
-#   medium ~769 MB — high accuracy, slower
-#   large-v3 ~1.5 GB — best accuracy, requires decent hardware
-model: base
+# ---------------------------------------------------------------------------
+# Model — tradeoff between speed and accuracy
+# ---------------------------------------------------------------------------
+# CPU users:
+#   tiny     ~39 MB  — fastest (~0.3s), great for most speech  ← default
+#   base     ~74 MB  — slower (~2s), slightly more accurate
+#   small    ~244 MB — slow (~4s), good accuracy
+#
+# GPU users (CUDA) — all models run 10x faster:
+#   tiny     ~0.03s  — imperceptible lag
+#   base     ~0.08s  — imperceptible lag
+#   small    ~0.15s  — imperceptible lag
+#   medium   ~0.3s   — barely noticeable, high accuracy
+#   large-v3 ~0.8s   — best accuracy available, handles accents/technical terms
+model: tiny
 
-# Language: "auto" for auto-detection, or a language code like "en", "fr", "es", "de"
+# Language — "auto" detects automatically, or set e.g. "en", "fr", "es", "de"
 language: auto
 
-# Global hotkey for the tray app (hold to record, release to transcribe)
-# Format: modifier+modifier+key  e.g. ctrl+shift+space, win+alt+v
+# ---------------------------------------------------------------------------
+# Hardware — GPU acceleration
+# ---------------------------------------------------------------------------
+# device: auto      — automatically uses GPU if available, CPU otherwise ← default
+# device: cuda      — force NVIDIA GPU (requires CUDA drivers installed)
+# device: cpu       — force CPU only
+device: auto
+
+# compute_type: auto     — automatically picks best type for device ← default
+# compute_type: float16  — GPU optimized (fast, full accuracy)
+# compute_type: int8     — CPU optimized (quantized, minimal accuracy loss)
+# compute_type: float32  — maximum accuracy (slower, more memory)
+compute_type: auto
+
+# ---------------------------------------------------------------------------
+# Hotkey — hold to record, release to transcribe
+# ---------------------------------------------------------------------------
 hotkey: ctrl+shift+space
 
-# Device: "cpu" or "cuda" (if you have an NVIDIA GPU with CUDA)
-device: cpu
-
-# Paste mode after transcription:
-#   auto      — copies to clipboard AND sends Ctrl+V to the focused window
-#   clipboard — copies to clipboard only (you paste manually with Ctrl+V)
+# ---------------------------------------------------------------------------
+# Paste mode — where text goes after transcription
+# ---------------------------------------------------------------------------
+# auto      — paste into Claude Code (or focused window)
+# clipboard — copy to clipboard only, paste manually with Ctrl+V / Cmd+V
 paste_mode: auto
 
-# Audio settings (no need to change for most microphones)
+# ---------------------------------------------------------------------------
+# Audio settings — no need to change for most microphones
+# ---------------------------------------------------------------------------
 sample_rate: 16000
 channels: 1

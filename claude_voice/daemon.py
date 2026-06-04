@@ -20,11 +20,15 @@ PORT = 45678
 _model_ref: dict = {}
 
 
-def _get_model(name: str, device: str):
-    if _model_ref.get("name") != name or _model_ref.get("device") != device:
+def _get_model(name: str, device: str, compute_type: str | None = None):
+    from claude_voice.transcriber import best_compute_type
+    ct = compute_type or best_compute_type(device)
+    key = f"{name}:{device}:{ct}"
+    if _model_ref.get("key") != key:
         from faster_whisper import WhisperModel
-        print(f"[daemon] Loading Whisper '{name}' on {device}...", flush=True)
-        _model_ref["model"] = WhisperModel(name, device=device, compute_type="int8")
+        print(f"[daemon] Loading Whisper '{name}' on {device} ({ct})...", flush=True)
+        _model_ref["model"] = WhisperModel(name, device=device, compute_type=ct)
+        _model_ref["key"] = key
         _model_ref["name"] = name
         _model_ref["device"] = device
         print("[daemon] Model ready.", flush=True)
@@ -50,7 +54,7 @@ def _record_wav(duration: float, sample_rate: int = 16000):
     return buf.getvalue(), peak
 
 
-def _record_and_transcribe(duration: float, model_name: str, language: str, device: str, target: str) -> str:
+def _record_and_transcribe(duration: float, model_name: str, language: str, device: str, compute_type: str, target: str) -> str:
     import tempfile, os
     from claude_voice.transcriber import _normalize_wav
     from claude_voice.paster import paste_to_target
@@ -59,8 +63,8 @@ def _record_and_transcribe(duration: float, model_name: str, language: str, devi
     wav_bytes, peak = _record_wav(duration)
     wav_bytes = _normalize_wav(wav_bytes)
 
-    print(f"[daemon] Transcribing with model={model_name} lang={language}...", flush=True)
-    model = _get_model(model_name, device)
+    print(f"[daemon] Transcribing — model={model_name} device={device} compute={compute_type}...", flush=True)
+    model = _get_model(model_name, device, compute_type)
     lang = None if language == "auto" else language
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -128,8 +132,9 @@ class _Handler(BaseHTTPRequestHandler):
             from claude_voice.transcriber import _normalize_wav
             import tempfile, os
 
+            compute_type = self.cfg.get("compute_type", "auto")
             wav_bytes = _normalize_wav(wav_bytes)
-            model = _get_model(model_name, device)
+            model = _get_model(model_name, device, compute_type)
             lang = None if language == "auto" else language
 
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -150,12 +155,13 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"text": text})
 
         elif path == "/record":
-            duration   = float(qs.get("duration",  [8])[0])
-            target     = qs.get("target",   [self.cfg.get("paste_mode", "claude")])[0]
-            model_name = qs.get("model",    [self.cfg.get("model", "base")])[0]
-            language   = qs.get("language", [self.cfg.get("language", "auto")])[0]
-            device     = self.cfg.get("device", "cpu")
-            text = _record_and_transcribe(duration, model_name, language, device, target)
+            duration     = float(qs.get("duration",  [8])[0])
+            target       = qs.get("target",   [self.cfg.get("paste_mode", "claude")])[0]
+            model_name   = qs.get("model",    [self.cfg.get("model", "tiny")])[0]
+            language     = qs.get("language", [self.cfg.get("language", "auto")])[0]
+            device       = self.cfg.get("device", "cpu")
+            compute_type = self.cfg.get("compute_type", "auto")
+            text = _record_and_transcribe(duration, model_name, language, device, compute_type, target)
             self._json({"text": text, "pasted": bool(text)})
 
         elif path == "/test-mic":
@@ -183,7 +189,11 @@ class _Handler(BaseHTTPRequestHandler):
 
 def start(cfg: dict) -> None:
     _Handler.cfg = cfg
-    _get_model(cfg.get("model", "base"), cfg.get("device", "cpu"))
+    device       = cfg.get("device", "cpu")
+    compute_type = cfg.get("compute_type", "auto")
+    model_name   = cfg.get("model", "tiny")
+    print(f"[daemon] Device: {device}  Compute: {compute_type}  Model: {model_name}", flush=True)
+    _get_model(model_name, device, compute_type)
     server = HTTPServer(("127.0.0.1", PORT), _Handler)
     print(f"[daemon] Listening on 127.0.0.1:{PORT}", flush=True)
     server.serve_forever()

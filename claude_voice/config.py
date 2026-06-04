@@ -6,8 +6,9 @@ DEFAULTS = {
     "model": "tiny",
     "language": "auto",
     "hotkey": "ctrl+shift+space",
-    "device": "cpu",
-    "paste_mode": "auto",       # auto | clipboard
+    "device": "auto",           # auto | cpu | cuda
+    "compute_type": "auto",     # auto | int8 (cpu) | float16 (gpu) | float32
+    "paste_mode": "auto",
     "sample_rate": 16000,
     "channels": 1,
     "silence_threshold": 0.01,
@@ -23,6 +24,18 @@ def load() -> dict:
         with open(CONFIG_PATH) as f:
             overrides = yaml.safe_load(f) or {}
         cfg.update(overrides)
+
+    # Resolve "auto" device at runtime
+    if cfg.get("device") == "auto":
+        from .transcriber import detect_device
+        device, compute_type = detect_device()
+        cfg["device"] = device
+        if cfg.get("compute_type") == "auto":
+            cfg["compute_type"] = compute_type
+    elif cfg.get("compute_type") == "auto":
+        from .transcriber import best_compute_type
+        cfg["compute_type"] = best_compute_type(cfg["device"])
+
     return cfg
 
 

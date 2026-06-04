@@ -9,16 +9,50 @@ MODELS = ["tiny", "base", "small", "medium", "large-v3"]
 _model_cache: dict[str, WhisperModel] = {}
 
 
-def get_model(name: str, device: str = "cpu") -> WhisperModel:
-    key = f"{name}:{device}"
+def detect_device() -> tuple[str, str]:
+    """
+    Auto-detect the best available device and compute type.
+    Returns (device, compute_type).
+    """
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda", "float16"
+    except ImportError:
+        pass
+
+    # faster-whisper can also check without torch
+    try:
+        import ctranslate2
+        if "cuda" in ctranslate2.get_supported_compute_types("cuda"):
+            return "cuda", "float16"
+    except Exception:
+        pass
+
+    return "cpu", "int8"
+
+
+def best_compute_type(device: str) -> str:
+    """Return the optimal compute type for the given device."""
+    if device == "cuda":
+        return "float16"   # GPU — float16 is fastest, fully accurate
+    if device == "cpu":
+        return "int8"      # CPU — int8 quantization, fast with minimal accuracy loss
+    return "int8"
+
+
+def get_model(name: str, device: str = "cpu", compute_type: str | None = None) -> WhisperModel:
+    ct = compute_type or best_compute_type(device)
+    key = f"{name}:{device}:{ct}"
     if key not in _model_cache:
-        print(f"Loading Whisper model '{name}' on {device}...", flush=True)
-        _model_cache[key] = WhisperModel(name, device=device, compute_type="int8")
+        print(f"[claude-voice] Loading Whisper '{name}' on {device} ({ct})...", flush=True)
+        _model_cache[key] = WhisperModel(name, device=device, compute_type=ct)
+        print(f"[claude-voice] Model ready.", flush=True)
     return _model_cache[key]
 
 
 def _normalize_wav(wav_bytes: bytes, target_peak: float = 0.5) -> bytes:
-    """Boost quiet audio to a consistent peak level. Fast path — no noise reduction."""
+    """Boost quiet audio to a consistent peak level."""
     buf = io.BytesIO(wav_bytes)
     with wave.open(buf, "rb") as wf:
         sr, ch = wf.getframerate(), wf.getnchannels()
@@ -41,9 +75,10 @@ def transcribe(
     model_name: str = "tiny",
     language: str = "auto",
     device: str = "cpu",
+    compute_type: str | None = None,
     beam_size: int = 1,
 ) -> str:
-    model = get_model(model_name, device)
+    model = get_model(model_name, device, compute_type)
     lang = None if language == "auto" else language
     wav_bytes = _normalize_wav(wav_bytes)
 

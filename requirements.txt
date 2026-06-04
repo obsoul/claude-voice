@@ -1,4 +1,10 @@
 # Core — required on all platforms
+# GPU acceleration (optional — NVIDIA CUDA only):
+#   pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+#   Then set device: cuda in ~/.claude-voice/config.yaml
+#   Or run: python main.py detect  to check your hardware
+
+# Core — required on all platforms
 faster-whisper>=1.0.0
 sounddevice>=0.4.6
 numpy>=1.24.0

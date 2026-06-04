@@ -154,6 +154,48 @@ python main.py hotkey --autostart
 
 ---
 
+## GPU Acceleration (optional)
+
+If you have an NVIDIA GPU, claude-voice will automatically use it for transcription — dropping overhead from ~0.3s to **~0.03s** and unlocking larger, more accurate models at the same speed.
+
+### Check your hardware
+```bash
+python main.py detect
+```
+This shows whether CUDA is available and the recommended settings for your machine.
+
+### Enable GPU (if not auto-detected)
+
+**Step 1** — Install CUDA drivers from [nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads)
+
+**Step 2** — Install CUDA Python packages:
+```bash
+pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
+```
+
+**Step 3** — Update `~/.claude-voice/config.yaml`:
+```yaml
+device: cuda
+compute_type: float16
+model: large-v3   # now affordable on GPU — near-perfect accuracy
+```
+
+**Step 4** — Restart the background service: `python main.py serve`
+
+### GPU speed comparison
+
+| Model | CPU speed | GPU speed | Quality |
+|-------|-----------|-----------|---------|
+| tiny | ~0.3s | ~0.03s | Great for everyday speech |
+| base | ~2s | ~0.08s | Better accuracy |
+| small | ~4s | ~0.15s | Strong accuracy |
+| medium | too slow | ~0.3s | High accuracy |
+| large-v3 | too slow | ~0.8s | Best available — handles accents, technical terms |
+
+> **No NVIDIA GPU?** The default CPU + tiny setup is already fast. GPU is an enhancement, not a requirement.
+
+---
+
 ## Customizing your settings
 
 Your settings live at `C:\Users\YourName\.claude-voice\config.yaml`. Open it with any text editor (Notepad works fine).
