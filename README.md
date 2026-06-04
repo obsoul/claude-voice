@@ -4,6 +4,8 @@
 
 Works in Claude Code and any Windows, Mac, or Linux app. Runs 100% on your computer. No internet, no API keys, no subscriptions.
 
+> **Using a different LLM?** Check out **[voicepaste](https://github.com/obsoul/voicepaste)** — the universal version of this tool that works with ChatGPT, Cursor, Gemini, Ollama, and any app.
+
 ---
 
 ## What it does
